@@ -1,12 +1,11 @@
-# Controle Financeiro Mobile v0.4
+# Controle Financeiro Mobile v0.4.1
 
-Versão coordenada com o Controle Financeiro Windows v6.17.
+Correção dos indicadores de Receitas e Gastos após sincronização com o PC.
 
-## Novidade principal
-Sincronização real via Google Drive, com OAuth, revisão de nuvem e bloqueio de conflitos.
-
-## Modo local
-Execute `iniciar_mobile.bat` e acesse `http://SEU_IP:8080` para continuar testando a interface.
-
-## Google Drive real
-Para login Google no celular, publique a PWA em HTTPS e siga `GOOGLE_DRIVE_SYNC_SETUP.md`.
+- Receitas e gastos usam o mês mais recente da base, como a Visão Geral do Windows.
+- Transferências entre contas próprias não entram em receita/gasto.
+- Aportes em Investimentos não entram como gasto de consumo.
+- Resgates de investimento não entram como receita comum.
+- Despesas marcadas para não impactar orçamento são excluídas do total de gastos.
+- Nenhuma movimentação é apagada ou alterada: a correção é somente no cálculo dos indicadores.
+- Cabeçalho atualizado para v0.4.1 e cache PWA renovado.
