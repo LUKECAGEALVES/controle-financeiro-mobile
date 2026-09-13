@@ -1,0 +1,21 @@
+Controle Financeiro Mobile v0.7.3 — validação
+
+Validação automatizada executada antes do empacotamento: 46 verificações financeiras aprovadas.
+
+Cobertura principal:
+- histórico parcial + lançamentos detalhados;
+- categorias legadas;
+- receitas, gastos, saldo, aportes, resgates, financiamentos e fluxo de caixa;
+- série mensal e Todos os anos;
+- maiores gastos;
+- contas fixas;
+- dívidas e saldo zerado;
+- saldos de contas com/sem âncora;
+- patrimônio líquido;
+- composição dos indicadores;
+- filtro de ano de Relatórios;
+- migração de versão;
+- diagnóstico local de coerência financeira.
+
+`node --check` aprovado para app.js, parity-core.js e parity-pages.js.
+Cache PWA renovado para v0.7.3.

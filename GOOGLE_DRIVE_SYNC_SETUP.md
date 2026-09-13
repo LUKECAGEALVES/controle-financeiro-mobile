@@ -1,6 +1,6 @@
-# Google Drive — Mobile v0.7.2
+# Google Drive — Mobile v0.7.3
 
-O Mobile v0.7.2 usa o mesmo arquivo `controle_financeiro_sync.json` da versão Windows v7.2.
+O Mobile v0.7.3 usa o mesmo arquivo `controle_financeiro_sync.json` da versão Windows v7.2.3.3.
 
 - Use somente o OAuth Client ID do tipo **Aplicativo da Web** no mobile.
 - Nunca coloque `client_secret` no código, GitHub ou navegador.

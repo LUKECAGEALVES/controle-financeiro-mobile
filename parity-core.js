@@ -1,4 +1,4 @@
-/* Controle Financeiro Mobile v0.7.2 — camada de paridade com desktop v7.2
+/* Controle Financeiro Mobile v0.7.3 — camada de paridade com desktop v7.2.3
  * Esta camada não substitui nem converte os dados existentes. Ela apenas
  * adiciona UI, filtros e cálculos equivalentes aos serviços do desktop.
  */
@@ -11,9 +11,17 @@ function parityEnsureData(){
   }
   ex.diagnostics=(ex.diagnostics&&typeof ex.diagnostics==='object')?ex.diagnostics:{};
   ex.desktopSettings=(ex.desktopSettings&&typeof ex.desktopSettings==='object')?ex.desktopSettings:{};
+  for(const a of data.accounts||[]){
+    if(a.balanceAnchorSet===undefined||a.balanceAnchorSet===null){
+      const hasReconciliation=(ex.reconciliations||[]).some(r=>String(r.account||'')===String(a.name||''));
+      const informed=Math.abs(Number(a.openingBalance??a.balance??0))>0.005;
+      a.balanceAnchorSet=hasReconciliation||informed;
+    }
+    if(boolish(a.balanceAnchorSet,false)&&!a.openingDate)a.openingDate=isoToday();
+  }
   data.settings={monthlyIncome:0,monthlyInvestmentGoal:0,essentialBase:0,userName:'Usuário',theme:'light',autosave:true,backupRetention:12,...(data.settings||{})};
   data.reserve={current:0,months:6,...(data.reserve||{})};
-  state.meta.version='0.7.2';
+  state.meta.version='0.7.3';
   state.meta.uiFilters=(state.meta.uiFilters&&typeof state.meta.uiFilters==='object')?state.meta.uiFilters:{};
   state.meta.uiSearch=(state.meta.uiSearch&&typeof state.meta.uiSearch==='object')?state.meta.uiSearch:{};
   save();
@@ -37,7 +45,7 @@ function categoryRows(activeOnly=false){
   const known=new Set([...Object.keys(data.budget||{}),...(data.transactions||[]).map(x=>x.category).filter(Boolean)]);
   return [...known].sort().map(name=>({name,group_name:['Recebimentos','Renda','Estornos'].includes(name)?'Receita':name==='Investimentos'?'Investimento':name==='Transferência entre contas'?'Neutro':'Despesa',essential:false,active:true}));
 }
-function categoryByName(name){return categoryRows(false).find(x=>x.name===name)||{name,group_name:['Recebimentos','Renda','Estornos'].includes(name)?'Receita':name==='Investimentos'?'Investimento':name==='Transferência entre contas'?'Neutro':'Outros',essential:false,active:true}}
+function categoryByName(name){const canonical=canonicalCategory(name),rows=categoryRows(false),found=rows.find(x=>x.name===canonical)||rows.find(x=>canonicalCategory(x.name)===canonical);return found||{name:canonical,group_name:['Recebimentos','Renda','Estornos'].includes(canonical)?'Receita':canonical==='Investimentos'?'Investimento':canonical==='Transferência entre contas'?'Neutro':'Outros',essential:false,active:true}}
 function categoryNames(includeInactive=false){return categoryRows(!includeInactive).map(x=>x.name).sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function uniqueValues(items,key){return [...new Set((items||[]).map(x=>String(typeof key==='function'?key(x):x?.[key]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function availableYears(){
@@ -60,54 +68,76 @@ function inPeriod(tx,year,month){
   if(!tx?.date)return false;const y=Number(tx.date.slice(0,4)),m=Number(tx.date.slice(5,7));
   return (!year||year==='Todos'||Number(year)===y)&&(!month||Number(month)===m);
 }
-function historicalPeriodUsed(year,month,granularMonths){
-  const match=h=>(!year||year==='Todos'||Number(h.year)===Number(year))&&(!month||Number(h.month)===Number(month))&&!granularMonths.has(isoMonthKey(h.year,h.month));
-  return (data.desktopExtra?.historicalSummary||[]).some(match)||(data.desktopExtra?.historicalIncome||[]).some(match);
+function canonicalCategory(category){
+  const raw=String(category||'Outros').trim()||'Outros';
+  const map={
+    'Contas':'Contas e serviços','Não categorizado':'Outros','Comida e bebida':'Alimentação',
+    'Assinatura de serviços':'Assinaturas','Gastos diversos':'Outros','imposto':'Impostos',
+    'Etretenimento':'Lazer','Seguros':'Seguros'
+  };
+  if(map[raw])return map[raw];
+  const low=raw.toLocaleLowerCase('pt-BR');
+  for(const [oldName,newName] of Object.entries(map))if(oldName.toLocaleLowerCase('pt-BR')===low)return newName;
+  return raw;
 }
+function moneyRound(v){return Math.round((Number(v||0)+Number.EPSILON)*100)/100}
 function flowClassification(t){
-  const a=signedAmount(t),cat=String(t?.category||'Outros').trim()||'Outros',meta=categoryByName(cat),group=String(meta.group_name||'Outros').trim().toLowerCase();
-  const own=boolish(t?.ownTransfer,false),impact=boolish(t?.impactBudget,true),catLow=cat.toLowerCase();
+  const a=signedAmount(t),cat=canonicalCategory(t?.category||'Outros'),meta=categoryByName(cat),group=String(meta.group_name||'Outros').trim().toLocaleLowerCase('pt-BR');
+  const own=boolish(t?.ownTransfer,false),impact=boolish(t?.impactBudget,true),catLow=cat.toLocaleLowerCase('pt-BR');
   if(own||['neutro','neutral'].includes(group)||['transferência entre contas','transferencia entre contas'].includes(catLow))return {kind:'neutral',value:Math.abs(a),cat};
-  if(['investimento','investment'].includes(group)||cat==='Investimentos'||cat==='Resgate de investimento'){
+  if(['investimento','investment'].includes(group)||['investimentos','resgate de investimento'].includes(catLow)){
     if(a<0)return {kind:'investment',value:-a,cat};
     if(a>0)return {kind:'withdrawal',value:a,cat};
     return {kind:'neutral',value:0,cat};
   }
+  if(['financeiro','financing','financiamento'].includes(group)&&a>0)return {kind:'financing',value:a,cat};
   if(a>0)return {kind:'income',value:a,cat};
   if(a<0&&impact)return {kind:'expense',value:-a,cat};
   return {kind:'neutral',value:Math.abs(a),cat};
 }
 function periodMetrics(year='Todos',month=0){
   const tx=(data.transactions||[]).filter(t=>inPeriod(t,year,month));
-  const granular=new Set(tx.filter(t=>/^\d{4}-\d{2}/.test(t.date||'')).map(t=>String(t.date).slice(0,7)));
-  let income=0,expense=0,investments=0,withdrawals=0,essential=0,discretionary=0;const categories={};
+  let income=0,investments=0,withdrawals=0,financing=0;const categories={},detailedIncome={},detailedExpense={};
   for(const t of tx){
-    const {kind,value,cat}=flowClassification(t);
-    if(kind==='income')income+=value;
-    else if(kind==='expense'){
-      expense+=value;categories[cat]=(categories[cat]||0)+value;
-      if(boolish(categoryByName(cat).essential,false))essential+=value;else discretionary+=value;
-    }else if(kind==='investment')investments+=value;
+    const ds=String(t.date||'');if(ds.length<7)continue;const y=Number(ds.slice(0,4)),m=Number(ds.slice(5,7));
+    const {kind,value,cat}=flowClassification(t),ym=`${y}|${m}`;
+    if(kind==='income'){income+=value;detailedIncome[ym]=(detailedIncome[ym]||0)+value}
+    else if(kind==='expense'){categories[cat]=(categories[cat]||0)+value;const key=`${y}|${m}|${cat}`;detailedExpense[key]=(detailedExpense[key]||0)+value}
+    else if(kind==='investment')investments+=value;
     else if(kind==='withdrawal')withdrawals+=value;
+    else if(kind==='financing')financing+=value;
   }
+  const histExpense={};
   for(const h of data.desktopExtra?.historicalSummary||[]){
-    const y=Number(h.year),m=Number(h.month);if((year&&year!=='Todos'&&Number(year)!==y)||(month&&Number(month)!==m)||granular.has(isoMonthKey(y,m)))continue;
-    const cat=h.category||'Outros',v=Number(h.amount||0);expense+=v;categories[cat]=(categories[cat]||0)+v;if(boolish(categoryByName(cat).essential,false))essential+=v;else discretionary+=v;
+    const y=Number(h.year),m=Number(h.month);if((year&&year!=='Todos'&&Number(year)!==y)||(month&&Number(month)!==m))continue;
+    const cat=canonicalCategory(h.category||'Outros'),key=`${y}|${m}|${cat}`,v=Math.max(0,Number(h.amount||0));histExpense[key]=(histExpense[key]||0)+v;
   }
+  const histIncome={};
   for(const h of data.desktopExtra?.historicalIncome||[]){
-    const y=Number(h.year),m=Number(h.month);if((year&&year!=='Todos'&&Number(year)!==y)||(month&&Number(month)!==m)||granular.has(isoMonthKey(y,m)))continue;income+=Number(h.amount||0);
+    const y=Number(h.year),m=Number(h.month);if((year&&year!=='Todos'&&Number(year)!==y)||(month&&Number(month)!==m))continue;
+    const key=`${y}|${m}`;histIncome[key]=(histIncome[key]||0)+Math.max(0,Number(h.amount||0));
   }
-  const balance=income-expense;
-  const sorted=Object.fromEntries(Object.entries(categories).sort((a,b)=>b[1]-a[1]));
-  return {income,expense,balance,investments,withdrawals,savings_rate:income?balance/income*100:0,investment_rate:income?investments/income*100:0,essential,discretionary,categories:sorted,transactions:tx.length,historical_used:historicalPeriodUsed(year,month,granular)};
+  let historicalExpenseAdded=0,historicalIncomeAdded=0;
+  for(const [key,hval] of Object.entries(histExpense)){
+    const granular=Number(detailedExpense[key]||0),add=Math.max(0,hval-granular);if(add<=0)continue;
+    const cat=key.split('|').slice(2).join('|');categories[cat]=(categories[cat]||0)+add;historicalExpenseAdded+=add;
+  }
+  for(const [ym,hval] of Object.entries(histIncome)){
+    const add=Math.max(0,hval-Number(detailedIncome[ym]||0));if(add<=0)continue;income+=add;historicalIncomeAdded+=add;
+  }
+  const expense=Object.values(categories).reduce((s,v)=>s+Number(v||0),0);
+  const essential=Object.entries(categories).reduce((s,[cat,v])=>s+(boolish(categoryByName(cat).essential,false)?Number(v||0):0),0);
+  const discretionary=Math.max(0,expense-essential),balance=income-expense,cashFlow=income+withdrawals+financing-expense-investments;
+  const sorted=Object.fromEntries(Object.entries(categories).map(([k,v])=>[k,moneyRound(v)]).sort((a,b)=>b[1]-a[1]));
+  return {income:moneyRound(income),expense:moneyRound(expense),balance:moneyRound(balance),investments:moneyRound(investments),withdrawals:moneyRound(withdrawals),financing:moneyRound(financing),cash_flow:moneyRound(cashFlow),savings_rate:income?balance/income*100:0,investment_rate:income?investments/income*100:0,essential:moneyRound(essential),discretionary:moneyRound(discretionary),categories:sorted,transactions:tx.length,historical_used:historicalExpenseAdded>0.005||historicalIncomeAdded>0.005,historical_income_added:moneyRound(historicalIncomeAdded),historical_expense_added:moneyRound(historicalExpenseAdded)};
 }
 function flowTotals(year,month){const m=periodMetrics(year,month);return {income:m.income,expense:m.expense,balance:m.balance,investmentContrib:m.investments,withdrawals:m.withdrawals}}
-function monthlySeries(year){const y=Number(year)||latestPeriod().year;return Array.from({length:12},(_,i)=>{const d=periodMetrics(y,i+1);return {month:i+1,income:d.income,expense:d.expense,balance:d.balance,investments:d.investments}})}
+function monthlySeries(year){const y=(!year||String(year)==='Todos')?'Todos':Number(year);return Array.from({length:12},(_,i)=>{const d=periodMetrics(y,i+1);return {month:i+1,income:d.income,expense:d.expense,balance:d.balance,investments:d.investments}})}
 function debtSummary(){const rows=(data.debts||[]).filter(x=>String(x.status||'EM ABERTO').toUpperCase()!=='QUITADA'&&Number(x.balance||0)>0.005),original=rows.reduce((a,x)=>a+Number(x.original||0),0),balance=rows.reduce((a,x)=>a+Number(x.balance||0),0),monthly=rows.reduce((a,x)=>a+Number(x.payment||0),0),inc=Number(data.settings.monthlyIncome||0);return {balance,monthly,original,paid:Math.max(0,original-balance),count:rows.length,commitment:inc?monthly/inc*100:0}}
 function investmentCost(a){return String(a.kind||'').toLowerCase()==='renda fixa'?Number(a.invested||0):Number(a.quantity||0)*Number(a.avgPrice||0)}
 function investmentMarket(a){return String(a.kind||'').toLowerCase()==='renda fixa'?Number(a.current||0):Number(a.quantity||0)*Number(a.currentPrice||0)}
 function investmentSummary(){const aa=data.investments||[],market=aa.reduce((s,a)=>s+investmentMarket(a),0),cost=aa.reduce((s,a)=>s+investmentCost(a),0),income=aa.reduce((s,a)=>s+(a.incomeHistory||[]).reduce((q,h)=>q+Number(h.amount||0),0),0),allocation={};for(const a of aa)allocation[a.type||'Outros']=(allocation[a.type||'Outros']||0)+investmentMarket(a);return {market,cost,gain:market-cost,gain_pct:cost?(market-cost)/cost*100:0,income,allocation,count:aa.length}}
-function networthSummary(){const accounts=(data.accounts||[]).filter(a=>a.include!==false&&a.active!==false).reduce((s,a)=>s+Number(a.balance||0),0),investments=investmentSummary().market,debts=debtSummary().balance;return {accounts,investments,debts,networth:accounts+investments-debts,reserve_reference:Number(data.reserve.current||0)}}
+function networthSummary(referenceDate=isoToday()){const accountDetails=(data.accounts||[]).filter(a=>a.include!==false&&a.active!==false).map(a=>({name:a.name,balance:calculatedAccountBalance(a.name,referenceDate)})),accounts=accountDetails.reduce((s,a)=>s+Number(a.balance||0),0),investments=investmentSummary().market,debts=debtSummary().balance;return {accounts:moneyRound(accounts),investments:moneyRound(investments),debts:moneyRound(debts),networth:moneyRound(accounts+investments-debts),reserve_reference:moneyRound(data.reserve.current||0),account_details:accountDetails,reference_date:referenceDate}}
 function emergencyReserve(){
   const months=Math.max(1,Number(data.reserve.months||6)),current=Number(data.reserve.current||0),vals=[];let {year,month}=latestPeriod();
   for(let i=0;i<12&&vals.length<6;i++){const d=periodMetrics(year,month);if(d.essential>0)vals.push(d.essential);month--;if(month===0){month=12;year--}}
@@ -125,13 +155,13 @@ function budgetMap(year,month){
 function budgetRows(year,month){const spending=periodMetrics(year,month).categories,bud=budgetMap(year,month),rows=[];for(const c of categoryRows(true)){if(['Receita','Investimento','Neutro'].includes(c.group_name))continue;const b=Number(bud[c.name]||0),s=Number(spending[c.name]||0),used=b?s/b*100:0,status=b<=0?'Sem orçamento':s>b?'Estourado':used>=80?'Atenção':'OK';rows.push({category:c.name,budget:b,spent:s,balance:b-s,used,status,essential:boolish(c.essential)})}return rows}
 function budgetRowsAllMonths(year){const merged={};for(let m=1;m<=12;m++){for(const r of budgetRows(year,m)){if(!merged[r.category])merged[r.category]={category:r.category,budget:0,spent:0,essential:r.essential};merged[r.category].budget+=Number(r.budget||0);merged[r.category].spent+=Number(r.spent||0)}}return Object.values(merged).map(r=>{const used=r.budget?r.spent/r.budget*100:0,status=r.budget<=0?'Sem orçamento':r.spent>r.budget?'Estourado':used>=80?'Atenção':'OK';return {...r,balance:r.budget-r.spent,used,status}})}
 function setBudgetRecord(year,month,category,amount){const ex=data.desktopExtra;let r=ex.budgetRecords.find(x=>Number(x.year)===Number(year)&&Number(x.month)===Number(month)&&x.category===category);if(r)r.amount=Number(amount||0);else ex.budgetRecords.push({id:uid(),year:Number(year),month:Number(month),category,amount:Number(amount||0)});const d=new Date();if(Number(year)===d.getFullYear()&&Number(month)===d.getMonth()+1)data.budget[category]=Number(amount||0)}
-function recurringMonthlyValue(r){const a=Number(r.amount||0);return r.frequency==='Semanal'?a*4.33:r.frequency==='Anual'?a/12:a}
-function recurringSummary(){const rows=(data.recurring||[]).filter(x=>x.active!==false),monthly=rows.reduce((s,x)=>s+recurringMonthlyValue(x),0),essential=rows.filter(x=>boolish(x.essential)).reduce((s,x)=>s+recurringMonthlyValue(x),0);return {monthly,essential,count:rows.length}}
+function recurringMonthlyValue(r){const a=Number(r.amount||0);return r.frequency==='Semanal'?a*52/12:r.frequency==='Anual'?a/12:a}
+function recurringSummary(){const rows=(data.recurring||[]).filter(x=>x.active!==false),monthly=rows.reduce((s,x)=>s+recurringMonthlyValue(x),0),essential=rows.filter(x=>boolish(x.essential)).reduce((s,x)=>s+recurringMonthlyValue(x),0);return {monthly:moneyRound(monthly),essential:moneyRound(essential),count:rows.length}}
 function monthlyRecurring(){return recurringSummary().monthly}
 function categorySpent(cat,year=null,month=null){const p=year?{year,month}:latestPeriod();return Number(periodMetrics(p.year,p.month).categories[cat]||0)}
-function dashboardComposition(year,month){const d=periodMetrics(year,month),ds=debtSummary(),nw=networthSummary();return {'Receitas':[['Movimentações e histórico',d.income]],'Gastos':Object.entries(d.categories),'Saldo do período':[['Receitas',d.income],['Gastos',-d.expense]],'Aportes':[['Aportes identificados',d.investments]],'Saldo de dívidas':(data.debts||[]).filter(x=>String(x.status||'EM ABERTO').toUpperCase()!=='QUITADA'&&Number(x.balance||0)>0.005).map(x=>[x.item,Number(x.balance||0)]),'Patrimônio líquido':[['Contas',nw.accounts],['Investimentos',nw.investments],['Dívidas',-ds.balance]]}}
+function dashboardComposition(year,month){const d=periodMetrics(year,month),ds=debtSummary(),nw=networthSummary(),comp={'Receitas':[['Movimentações detalhadas',moneyRound(d.income-d.historical_income_added)],['Complemento do histórico',d.historical_income_added]],'Gastos':Object.entries(d.categories),'Saldo do período':[['Receitas',d.income],['Gastos',-d.expense]],'Aportes':[['Aportes identificados',d.investments]],'Saldo de dívidas':(data.debts||[]).filter(x=>String(x.status||'EM ABERTO').toUpperCase()!=='QUITADA'&&Number(x.balance||0)>0.005).map(x=>[x.item,Number(x.balance||0)]),'Patrimônio líquido':[...(nw.account_details||[]).map(x=>[`Conta • ${x.name}`,x.balance]),['Investimentos ativos',nw.investments],['Dívidas em aberto',-ds.balance]]};if(d.financing>0)comp['Entradas de financiamento (fora de Receitas)']=[['Empréstimos/financiamentos recebidos',d.financing]];if(d.withdrawals>0)comp['Resgates de investimento (fora de Receitas)']=[['Resgates identificados',d.withdrawals]];return comp}
 function annualReport(year){const series=monthlySeries(year);return {series,income:series.reduce((s,x)=>s+x.income,0),expense:series.reduce((s,x)=>s+x.expense,0),balance:series.reduce((s,x)=>s+x.balance,0),investments:series.reduce((s,x)=>s+x.investments,0)}}
-function topDescriptions(year,month=0,limit=15){const agg={};for(const r of data.transactions||[]){if(!inPeriod(r,year,month))continue;const a=signedAmount(r);if(a<0&&boolish(r.impactBudget,true)&&!boolish(r.ownTransfer)&&r.category!=='Investimentos'){const k=String(r.description||'').slice(0,70);agg[k]=(agg[k]||0)+(-a)}}return Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
+function topDescriptions(year,month=0,limit=15){const agg={};for(const r of data.transactions||[]){if(!inPeriod(r,year,month))continue;const c=flowClassification(r);if(c.kind!=='expense')continue;const k=String(r.description||'Sem descrição').slice(0,70);agg[k]=(agg[k]||0)+c.value}return Object.entries(agg).map(([k,v])=>[k,moneyRound(v)]).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
 function financialHealth(){
   let {year,month}=latestPeriod(),recent=[];const ly=year,lm=month;
   for(let i=0;i<6;i++){const d=periodMetrics(year,month);if(d.income>0||d.expense>0)recent.push(d);month--;if(month===0){month=12;year--}}
@@ -146,7 +176,8 @@ function financialHealth(){
   return {score,avg_income:avgIncome,avg_expense:avgExpense,savings_rate:savingsRate,debt_commitment:debtCommit,reserve_months:reserveMonths,essential_pct:essentialPct,networth:nw.networth,alerts,period:`${monthName(lm)}/${ly}`};
 }
 function healthSummary(){const h=financialHealth();return {score:h.score,saveRate:h.savings_rate,debtCommit:h.debt_commitment,reserveMonths:h.reserve_months,networth:h.networth,essentialPct:h.essential_pct,avgIncome:h.avg_income,alerts:h.alerts}}
-function calculatedAccountBalance(account,referenceDate){const a=(data.accounts||[]).find(x=>x.name===account);if(!a)return 0;const opening=a.openingDate||isoToday();if(referenceDate<opening)return Number(a.balance||0);let total=Number(a.openingBalance||0);for(const t of data.transactions||[]){if(t.account===account&&String(t.date||'')>opening&&String(t.date||'')<=referenceDate)total+=signedAmount(t)}return Math.round(total*100)/100}
+function calculatedAccountBalance(account,referenceDate=isoToday()){const a=(data.accounts||[]).find(x=>x.name===account);if(!a)return 0;const anchored=boolish(a.balanceAnchorSet,false);if(!anchored){let total=0;for(const t of data.transactions||[]){if(t.account===account&&String(t.date||'')<=referenceDate)total+=signedAmount(t)}return moneyRound(total)}const opening=a.openingDate||referenceDate;if(referenceDate<opening)return moneyRound(a.balance??a.openingBalance??0);let total=Number(a.openingBalance||0);for(const t of data.transactions||[]){if(t.account===account&&String(t.date||'')>opening&&String(t.date||'')<=referenceDate)total+=signedAmount(t)}return moneyRound(total)}
+function localFinancialDiagnostics(){const p=latestPeriod(),d=periodMetrics(p.year,p.month),nw=networthSummary(),row=monthlySeries(p.year)[p.month-1]||{income:0,expense:0,balance:0};let accountsOk=true;for(const a of data.accounts||[]){if(a.active===false)continue;try{calculatedAccountBalance(a.name,isoToday())}catch{accountsOk=false;break}}const checks={saldo_periodo:Math.abs(d.balance-(d.income-d.expense))<.011,patrimonio_liquido:Math.abs(nw.networth-(nw.accounts+nw.investments-nw.debts))<.011,serie_mensal:Math.abs(row.income-d.income)<.011&&Math.abs(row.expense-d.expense)<.011&&Math.abs(row.balance-d.balance)<.011,dividas_nao_negativas:debtSummary().balance>=-.005&&debtSummary().monthly>=-.005,contas_calculaveis:accountsOk};return {ok:Object.values(checks).every(Boolean),checks,period:`${p.year}-${String(p.month).padStart(2,'0')}`}}
 
 // ----- filtros universais -----
 var PARITY_FILTER_DEFAULTS={
@@ -177,7 +208,7 @@ function filterField(id,label,html){return `<label>${label}</label>${html.replac
 function openFilters(module){
   const f=getFilters(module);let body='';
   const select=(id,label,opts)=>{body+=filterField(id,label,`<select class="field">${opts}</select>`)};
-  if(['dashboard','transactions','budget','reports','cards'].includes(module)){select('year','Ano',yearOptions(f.year,module!=='budget'&&module!=='dashboard'));select('month','Mês',monthOptions(f.month,true))}
+  if(['dashboard','transactions','budget','reports','cards'].includes(module)){select('year','Ano',yearOptions(f.year,module!=='budget'&&module!=='dashboard'&&module!=='reports'));select('month','Mês',monthOptions(f.month,true))}
   if(module==='transactions'){select('type','Tipo',optionsHtml(['income','expense'],f.type,'Todos').replace('>income<','>Receitas<').replace('>expense<','>Despesas<'));select('category','Categoria',optionsHtml(categoryNames(true),f.category));select('account','Conta',optionsHtml(uniqueValues(data.accounts,'name'),f.account));select('impact','Impacta orçamento',optionsHtml(['Sim','Não'],f.impact));select('own','Transferência própria',optionsHtml(['Sim','Não'],f.own))}
   if(module==='budget'){select('status','Status',optionsHtml(['OK','Atenção','Estourado','Sem orçamento'],f.status));select('category','Categoria',optionsHtml(categoryNames(true),f.category))}
   if(module==='recurring'){select('status','Status',optionsHtml(['Ativa','Pausada'],f.status));select('category','Categoria',optionsHtml(categoryNames(true),f.category));select('essential','Essencial',optionsHtml(['Sim','Não'],f.essential));select('frequency','Frequência',optionsHtml(['Mensal','Semanal','Anual'],f.frequency));select('account','Conta',optionsHtml(uniqueValues(data.recurring,'account'),f.account))}
@@ -215,4 +246,4 @@ function benchmarkComparisonJS(params){const cases=[['Seu cenário',num(params.r
 function simulateDebtExtraPaymentJS(d,extra){let bal=Math.max(0,Number(d.balance||0)),pay=Math.max(0,Number(d.payment||0)),ex=Math.max(0,num(extra)),rate=Math.max(0,Number(d.interest||0))/100;if(pay<=0)return {months_before:null,months_after:null,interest_before:0,interest_after:0,saved_interest:0};const sim=start=>{let b=start,months=0,interest=0;while(b>.005&&months<1200){const j=b*rate;interest+=j;b=Math.max(0,b+j-pay);months++;if(rate>0&&pay<=j&&months>24)return [null,null]}return [months,Math.round(interest*100)/100]};const [mb,ib]=sim(bal),[ma,ia]=sim(Math.max(0,bal-ex));return {months_before:mb,months_after:ma,interest_before:ib||0,interest_after:ia||0,saved_interest:Math.round(((ib||0)-(ia||0))*100)/100}}
 function monteCarloJS(params,simulations=400,volatilityPct=12){simulations=clamp(Math.round(simulations),100,2000);const vol=Math.max(0,num(volatilityPct))/100,annual=num(params.rate)/100,years=Math.max(1,Math.round(num(params.years||1))),months=years*12,initial=num(params.initial),monthly=num(params.monthly),finals=[];function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}for(let i=0;i<simulations;i++){let bal=initial;for(let m=0;m<months;m++){const r=Math.max(-.95,annual/12+randn()*vol/Math.sqrt(12));bal=Math.max(0,bal*(1+r)+monthly)}finals.push(bal)}finals.sort((a,b)=>a-b);const q=p=>Math.round(finals[Math.min(finals.length-1,Math.max(0,Math.floor((finals.length-1)*p)))]*100)/100;return {p10:q(.1),p50:q(.5),p90:q(.9),simulations,volatility_pct:volatilityPct}}
 
-function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.7.2'},data}}
+function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.7.3'},data}}

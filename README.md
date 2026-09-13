@@ -1,46 +1,28 @@
-# Controle Financeiro Mobile v0.7.2 — Paridade Completa
+# Controle Financeiro Mobile v0.7.3 — Paridade Completa
 
-A v0.7.2 aproxima o aplicativo mobile da versão desktop v7.2, mantendo a mesma base sincronizada pelo Google Drive.
+A v0.7.3 alinha os cálculos do Mobile com o Windows v7.2.3 e corrige os indicadores da Visão Geral sem converter nem regravar os lançamentos existentes.
 
-## Principais recursos
+## Correções financeiras da v0.7.3
 
-- Visão geral com filtros de período, KPIs, fluxo mensal, categorias e composição dos indicadores.
-- Movimentações com filtros avançados, busca, inclusão, edição, exclusão, importação Nubank e exportação CSV.
-- Orçamento por ano/mês/categoria/status e cópia do mês anterior.
-- Contas fixas com CRUD, filtros, ativar/pausar, essencial, frequência e conta.
-- Dívidas com CRUD, pagamentos, amortização extra, simulação, histórico e estratégias.
-- Investimentos com CRUD completo, aportes, resgates, rendimentos, valor/preço, extrato e alocação.
-- Calculadora simples/completa, meta reversa, benchmarks, Monte Carlo e cenários.
-- Metas e reserva com filtros, CRUD, aportes, ajuste de saldo e histórico.
-- Patrimônio com CRUD de contas, saldos, conciliação e histórico.
-- Cartões com CRUD, compras parceladas, parcelas, pagamentos e projeção de faturas.
-- Saúde financeira com a mesma regra de cálculo do desktop.
-- Relatórios anuais/mensais com exportação CSV.
-- Categorias, regras automáticas, auditoria, lixeira, diagnóstico e configurações.
-- Sincronização automática/manual com Google Drive e proteção de conflitos.
+- Histórico mensal e movimentações detalhadas são conciliados por mês/categoria, sem perder valores quando a migração está parcial.
+- Entradas de empréstimos/financiamentos não entram em Receitas.
+- Aportes, resgates e transferências próprias permanecem separados de Receitas/Gastos.
+- Categorias legadas são normalizadas apenas durante os cálculos.
+- Patrimônio líquido usa saldo calculado das contas, com âncora/conciliação quando existente.
+- Dívidas zeradas não continuam comprometendo a renda.
+- Contas fixas semanais usam `52/12`; anuais usam `1/12`.
+- Série mensal, Relatórios, Saúde Financeira, maiores gastos e composição seguem a mesma regra.
+- O filtro **00 - Todos os meses** permanece disponível onde faz sentido.
+- O Diagnóstico mostra também a coerência financeira local.
 
-## Filtros
+## Principais módulos
 
-Os módulos usam um painel de filtros em formato mobile (bottom sheet) e chips removíveis para filtros ativos.
+Visão Geral, Movimentações, Orçamento, Contas Fixas, Dívidas, Investimentos, Calculadoras, Metas/Reserva, Patrimônio/Conciliação, Cartões, Saúde Financeira, Relatórios, Categorias/Regras, Auditoria, Lixeira, Diagnóstico, Configurações e Google Drive.
 
-## Atualização
+## Sincronização
 
-Publique os arquivos desta pasta na raiz do repositório GitHub Pages. O `index.html` deve permanecer na raiz.
+Use esta versão com o Windows v7.2.3. As contas sincronizam a posição atual e a âncora de saldo para evitar patrimônio congelado ou movimentações contadas duas vezes.
 
-## Segurança
+## Publicação
 
-Nunca publique `credentials.json`, `client_secret`, tokens OAuth ou bancos SQLite no GitHub. O mobile utiliza apenas o OAuth Web Client ID.
-
-## v0.7.2 — filtro Todos os meses
-
-- O filtro de mês agora oferece **Todos os meses** na Visão Geral, Movimentações, Orçamento, Cartões e Relatórios.
-- Na Visão Geral, a opção consolida os indicadores do ano selecionado.
-- No Orçamento, a opção mostra o total anual por categoria sem permitir edição acidental de um orçamento sem mês definido.
-
-## v0.7.2 — correção dos indicadores
-
-- Receitas positivas são reconhecidas mesmo quando usam categorias antigas ou personalizadas, como `Trabalho` ou categorias importadas.
-- Transferências neutras, aportes e resgates continuam excluídos de Receitas/Gastos conforme a regra do PC.
-- Saldo, taxa de poupança, taxa de aporte, relatórios e Saúde Financeira usam a mesma regra corrigida do desktop.
-- Dívidas e Patrimônio Líquido são apresentados como posição atual para não serem confundidos com valores históricos do filtro.
-- Nenhum dado salvo é convertido ou alterado.
+Publique os arquivos desta pasta na raiz do repositório GitHub Pages. O `index.html` deve permanecer na raiz. Nunca publique credenciais, tokens OAuth ou bancos SQLite.
