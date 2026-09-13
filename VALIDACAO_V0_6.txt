@@ -1,0 +1,31 @@
+CONTROLE FINANCEIRO MOBILE — VALIDAÇÃO V0.6
+
+Escopo: revisão de confiabilidade, sincronização, importação e PWA.
+
+Correções:
+- data local sem desvio UTC;
+- parcelas de cartão com fim de mês correto;
+- receitas/gastos mantêm as regras que já corrigiram transferências e investimentos;
+- CSV com parser para campos entre aspas, hash e deduplicação;
+- validação de IDs e coleções do payload remoto;
+- hashes local/remoto separados;
+- preflight/pós-verificação de uploads;
+- snapshots históricos no Drive;
+- primeira sincronização protege alterações locais;
+- conflito não é apagado por reconexão/configuração;
+- restauração de backup pausa o auto-sync;
+- Client ID validado;
+- busca do arquivo canônico prefere o mais recente se houver duplicidade;
+- Service Worker network-first e cache financeiro-mobile-v6.
+
+Validação executada:
+- node --check app.js: OK
+- manifest.json: JSON válido
+- verificação de handlers onclick: sem função de aplicação ausente
+- smoke tests de utilitários/datas/CSV/lógica financeira: OK
+
+Limitação conhecida:
+Navegadores móveis podem suspender a PWA fechada/em segundo plano; a sincronização automática é garantida enquanto o app está ativo e volta a verificar ao recuperar foco/conectividade.
+- dados de demonstração pessoais removidos do código público; instalação nova começa vazia/genérica.
+- avatar deixou de usar iniciais fixas e passa a derivar o nome configurado;
+- script local atualizado para v0.6 com fallback py/python.

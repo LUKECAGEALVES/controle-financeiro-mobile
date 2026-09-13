@@ -1,42 +1,18 @@
-# Publicar o Mobile em HTTPS com GitHub Pages
+# Atualizar/publicar o Mobile v0.6 no GitHub Pages
 
-O login Google direto no celular precisa de uma origem HTTPS. GitHub Pages é uma opção simples para a PWA estática.
+1. Extraia o ZIP.
+2. No repositório `controle-financeiro-mobile`, use **Add file → Upload files**.
+3. Envie o conteúdo desta pasta, mantendo `index.html`, `app.js`, `styles.css`, `manifest.json` e `sw.js` na raiz e `assets/` como pasta.
+4. Faça commit diretamente na branch `main`.
+5. Aguarde o GitHub Pages concluir o deploy.
+6. Abra novamente o endereço HTTPS do aplicativo.
 
-## 1. Criar o repositório
+A v0.6 usa Service Worker network-first e um novo cache, então normalmente a atualização aparece sem precisar limpar manualmente os dados do site.
 
-1. No GitHub, crie um repositório, por exemplo `controle-financeiro-mobile`.
-2. Pode deixá-lo público para usar GitHub Pages no plano gratuito. **Não coloque credenciais Desktop, tokens ou dados financeiros no repositório.**
-3. Envie somente os arquivos da pasta mobile (`index.html`, `app.js`, `styles.css`, `manifest.json`, `sw.js`, `assets/...`).
+## Não publicar
 
-## 2. Ativar Pages
+Nunca envie credenciais Desktop, arquivos `client_secret*.json`, `credentials.json`, tokens OAuth ou backups contendo dados financeiros.
 
-1. Abra o repositório no GitHub.
-2. Settings > Pages.
-3. Em Build and deployment, escolha `Deploy from a branch`.
-4. Selecione branch `main` e pasta `/ (root)`.
-5. Salve.
-
-O GitHub mostrará um endereço parecido com:
-
-`https://SEU_USUARIO.github.io/controle-financeiro-mobile/`
-
-A origem OAuth a cadastrar no Google Cloud é somente:
+A origem OAuth no Google Cloud continua sendo apenas o domínio, por exemplo:
 
 `https://SEU_USUARIO.github.io`
-
-## 3. Google Cloud
-
-No OAuth Client ID do tipo **Web application**, adicione em **Authorized JavaScript origins**:
-
-`https://SEU_USUARIO.github.io`
-
-Depois copie o Client ID e cole no Mobile em:
-
-**Mais > Configurações e Backup > Google Web Client ID**
-
-## 4. Importante
-
-- O GitHub Pages hospeda apenas o código estático da PWA.
-- Seus dados financeiros não são enviados ao repositório.
-- Os dados sincronizados ficam no seu Google Drive, no arquivo do Controle Financeiro.
-- Nunca envie `google_drive_credentials.json`, `google_drive_token.json` ou arquivos de backup com seus dados para o GitHub.
