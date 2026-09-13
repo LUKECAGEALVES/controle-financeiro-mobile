@@ -58,7 +58,7 @@ button{cursor:pointer}
 @media (min-width:521px){body{padding:18px}.app-shell{border-radius:28px;overflow:hidden;min-height:calc(100vh - 36px)}.bottom-nav{bottom:18px;border-radius:0 0 28px 28px}.toast{bottom:116px}}
 .sheet label{font-size:13px;font-weight:900;display:block;margin:13px 0 6px}.danger-btn{background:linear-gradient(135deg,#e53945,#c92532)!important}.kpi:not(.green):not(.red):not(.purple){background:#eef5ff}.status-grid{margin-top:8px}.menu-row{cursor:pointer}.card .actions-row button{min-height:42px}.info-row{padding:7px 0;border-bottom:1px solid var(--line)}.info-row:last-child{border-bottom:0}
 
-/* v0.7 — paridade funcional com o desktop */
+/* v0.7.2 — paridade funcional com o desktop */
 .page-subtitle{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
 .kpi-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .kpi-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}

@@ -1,6 +1,6 @@
-# Controle Financeiro Mobile v0.7 — Paridade Completa
+# Controle Financeiro Mobile v0.7.2 — Paridade Completa
 
-A v0.7 aproxima o aplicativo mobile da versão desktop v7.2, mantendo a mesma base sincronizada pelo Google Drive.
+A v0.7.2 aproxima o aplicativo mobile da versão desktop v7.2, mantendo a mesma base sincronizada pelo Google Drive.
 
 ## Principais recursos
 
@@ -30,3 +30,17 @@ Publique os arquivos desta pasta na raiz do repositório GitHub Pages. O `index.
 ## Segurança
 
 Nunca publique `credentials.json`, `client_secret`, tokens OAuth ou bancos SQLite no GitHub. O mobile utiliza apenas o OAuth Web Client ID.
+
+## v0.7.2 — filtro Todos os meses
+
+- O filtro de mês agora oferece **Todos os meses** na Visão Geral, Movimentações, Orçamento, Cartões e Relatórios.
+- Na Visão Geral, a opção consolida os indicadores do ano selecionado.
+- No Orçamento, a opção mostra o total anual por categoria sem permitir edição acidental de um orçamento sem mês definido.
+
+## v0.7.2 — correção dos indicadores
+
+- Receitas positivas são reconhecidas mesmo quando usam categorias antigas ou personalizadas, como `Trabalho` ou categorias importadas.
+- Transferências neutras, aportes e resgates continuam excluídos de Receitas/Gastos conforme a regra do PC.
+- Saldo, taxa de poupança, taxa de aporte, relatórios e Saúde Financeira usam a mesma regra corrigida do desktop.
+- Dívidas e Patrimônio Líquido são apresentados como posição atual para não serem confundidos com valores históricos do filtro.
+- Nenhum dado salvo é convertido ou alterado.

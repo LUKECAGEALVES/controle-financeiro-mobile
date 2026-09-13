@@ -1,0 +1,11 @@
+Controle Financeiro Mobile v0.7.2 — validação
+
+- JavaScript: sintaxe validada.
+- Teste de regressão do dashboard: aprovado.
+- Receita positiva em categoria `Trabalho`: contabilizada corretamente.
+- Transferência própria/neutra: excluída de Receitas/Gastos.
+- Aporte e resgate de investimento: classificados separadamente.
+- Teste Todos os meses: aprovado.
+- Cálculos de paridade com o PC: aprovados.
+- Cache do PWA renovado para v0.7.2.
+- Nenhuma informação financeira é alterada pela atualização.

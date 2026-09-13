@@ -1,6 +1,6 @@
-# Paridade funcional — Windows v7.2 x Mobile v0.7
+# Paridade funcional — Windows v7.2 x Mobile v0.7.2
 
-A v0.7 foi estruturada para disponibilizar no celular as funções financeiras do desktop, adaptadas para tela pequena.
+A v0.7.2 foi estruturada para disponibilizar no celular as funções financeiras do desktop, adaptadas para tela pequena.
 
 | Módulo | Paridade mobile |
 |---|---|

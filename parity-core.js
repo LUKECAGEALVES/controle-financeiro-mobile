@@ -1,4 +1,4 @@
-/* Controle Financeiro Mobile v0.7 — camada de paridade com desktop v7.2
+/* Controle Financeiro Mobile v0.7.2 — camada de paridade com desktop v7.2
  * Esta camada não substitui nem converte os dados existentes. Ela apenas
  * adiciona UI, filtros e cálculos equivalentes aos serviços do desktop.
  */
@@ -13,7 +13,7 @@ function parityEnsureData(){
   ex.desktopSettings=(ex.desktopSettings&&typeof ex.desktopSettings==='object')?ex.desktopSettings:{};
   data.settings={monthlyIncome:0,monthlyInvestmentGoal:0,essentialBase:0,userName:'Usuário',theme:'light',autosave:true,backupRetention:12,...(data.settings||{})};
   data.reserve={current:0,months:6,...(data.reserve||{})};
-  state.meta.version='0.7';
+  state.meta.version='0.7.2';
   state.meta.uiFilters=(state.meta.uiFilters&&typeof state.meta.uiFilters==='object')?state.meta.uiFilters:{};
   state.meta.uiSearch=(state.meta.uiSearch&&typeof state.meta.uiSearch==='object')?state.meta.uiSearch:{};
   save();
@@ -23,7 +23,7 @@ parityEnsureData();
 function signedAmount(tx){return Math.abs(Number(tx?.amount||0))*(tx?.type==='income'?1:-1)}
 function boolish(v,def=false){if(v===undefined||v===null)return def;if(v===true||v===1||v==='1'||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='sim')return true;if(v===false||v===0||v==='0'||String(v).toLowerCase()==='false'||String(v).toLowerCase()==='não'||String(v).toLowerCase()==='nao')return false;return def}
 function clamp(v,a,b){return Math.max(a,Math.min(b,Number(v||0)))}
-function monthName(m){return ['Todos','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][Number(m)||0]||'Todos'}
+function monthName(m){return ['Todos os meses','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][Number(m)||0]||'Todos os meses'}
 function isoMonthKey(y,m){return `${Number(y)}-${String(Number(m)).padStart(2,'0')}`}
 function parseJsonMaybe(v,def={}){if(v&&typeof v==='object')return v;try{return JSON.parse(v||'{}')}catch{return def}}
 function nowLocalIso(){const d=new Date(),pad=x=>String(x).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`}
@@ -52,6 +52,7 @@ function latestPeriod(){
   const candidates=[];
   for(const t of data.transactions||[]){if(/^\d{4}-\d{2}/.test(t.date||''))candidates.push([Number(t.date.slice(0,4)),Number(t.date.slice(5,7))])}
   for(const h of data.desktopExtra?.historicalSummary||[]){if(Number(h.year)&&Number(h.month))candidates.push([Number(h.year),Number(h.month)])}
+  for(const h of data.desktopExtra?.historicalIncome||[]){if(Number(h.year)&&Number(h.month))candidates.push([Number(h.year),Number(h.month)])}
   if(!candidates.length){const d=new Date();return {year:d.getFullYear(),month:d.getMonth()+1}}
   candidates.sort((a,b)=>b[0]-a[0]||b[1]-a[1]);return {year:candidates[0][0],month:candidates[0][1]};
 }
@@ -60,22 +61,34 @@ function inPeriod(tx,year,month){
   return (!year||year==='Todos'||Number(year)===y)&&(!month||Number(month)===m);
 }
 function historicalPeriodUsed(year,month,granularMonths){
-  return (data.desktopExtra?.historicalSummary||[]).some(h=>(!year||year==='Todos'||Number(h.year)===Number(year))&&(!month||Number(h.month)===Number(month))&&!granularMonths.has(isoMonthKey(h.year,h.month)));
+  const match=h=>(!year||year==='Todos'||Number(h.year)===Number(year))&&(!month||Number(h.month)===Number(month))&&!granularMonths.has(isoMonthKey(h.year,h.month));
+  return (data.desktopExtra?.historicalSummary||[]).some(match)||(data.desktopExtra?.historicalIncome||[]).some(match);
+}
+function flowClassification(t){
+  const a=signedAmount(t),cat=String(t?.category||'Outros').trim()||'Outros',meta=categoryByName(cat),group=String(meta.group_name||'Outros').trim().toLowerCase();
+  const own=boolish(t?.ownTransfer,false),impact=boolish(t?.impactBudget,true),catLow=cat.toLowerCase();
+  if(own||['neutro','neutral'].includes(group)||['transferência entre contas','transferencia entre contas'].includes(catLow))return {kind:'neutral',value:Math.abs(a),cat};
+  if(['investimento','investment'].includes(group)||cat==='Investimentos'||cat==='Resgate de investimento'){
+    if(a<0)return {kind:'investment',value:-a,cat};
+    if(a>0)return {kind:'withdrawal',value:a,cat};
+    return {kind:'neutral',value:0,cat};
+  }
+  if(a>0)return {kind:'income',value:a,cat};
+  if(a<0&&impact)return {kind:'expense',value:-a,cat};
+  return {kind:'neutral',value:Math.abs(a),cat};
 }
 function periodMetrics(year='Todos',month=0){
   const tx=(data.transactions||[]).filter(t=>inPeriod(t,year,month));
   const granular=new Set(tx.filter(t=>/^\d{4}-\d{2}/.test(t.date||'')).map(t=>String(t.date).slice(0,7)));
   let income=0,expense=0,investments=0,withdrawals=0,essential=0,discretionary=0;const categories={};
   for(const t of tx){
-    const a=signedAmount(t),cat=t.category||'Outros';
-    if(boolish(t.ownTransfer,false))continue;
-    if(cat==='Investimentos'&&a<0){investments+=-a;continue}
-    if(cat==='Resgate de investimento'&&a>0){withdrawals+=a;continue}
-    if(a>0){const group=categoryByName(cat).group_name;if(group==='Receita'||['Recebimentos','Renda','Estornos'].includes(cat))income+=a}
-    else if(a<0&&boolish(t.impactBudget,true)){
-      const v=-a;expense+=v;categories[cat]=(categories[cat]||0)+v;
-      if(boolish(categoryByName(cat).essential,false))essential+=v;else discretionary+=v;
-    }
+    const {kind,value,cat}=flowClassification(t);
+    if(kind==='income')income+=value;
+    else if(kind==='expense'){
+      expense+=value;categories[cat]=(categories[cat]||0)+value;
+      if(boolish(categoryByName(cat).essential,false))essential+=value;else discretionary+=value;
+    }else if(kind==='investment')investments+=value;
+    else if(kind==='withdrawal')withdrawals+=value;
   }
   for(const h of data.desktopExtra?.historicalSummary||[]){
     const y=Number(h.year),m=Number(h.month);if((year&&year!=='Todos'&&Number(year)!==y)||(month&&Number(month)!==m)||granular.has(isoMonthKey(y,m)))continue;
@@ -110,12 +123,13 @@ function budgetMap(year,month){
   return out;
 }
 function budgetRows(year,month){const spending=periodMetrics(year,month).categories,bud=budgetMap(year,month),rows=[];for(const c of categoryRows(true)){if(['Receita','Investimento','Neutro'].includes(c.group_name))continue;const b=Number(bud[c.name]||0),s=Number(spending[c.name]||0),used=b?s/b*100:0,status=b<=0?'Sem orçamento':s>b?'Estourado':used>=80?'Atenção':'OK';rows.push({category:c.name,budget:b,spent:s,balance:b-s,used,status,essential:boolish(c.essential)})}return rows}
+function budgetRowsAllMonths(year){const merged={};for(let m=1;m<=12;m++){for(const r of budgetRows(year,m)){if(!merged[r.category])merged[r.category]={category:r.category,budget:0,spent:0,essential:r.essential};merged[r.category].budget+=Number(r.budget||0);merged[r.category].spent+=Number(r.spent||0)}}return Object.values(merged).map(r=>{const used=r.budget?r.spent/r.budget*100:0,status=r.budget<=0?'Sem orçamento':r.spent>r.budget?'Estourado':used>=80?'Atenção':'OK';return {...r,balance:r.budget-r.spent,used,status}})}
 function setBudgetRecord(year,month,category,amount){const ex=data.desktopExtra;let r=ex.budgetRecords.find(x=>Number(x.year)===Number(year)&&Number(x.month)===Number(month)&&x.category===category);if(r)r.amount=Number(amount||0);else ex.budgetRecords.push({id:uid(),year:Number(year),month:Number(month),category,amount:Number(amount||0)});const d=new Date();if(Number(year)===d.getFullYear()&&Number(month)===d.getMonth()+1)data.budget[category]=Number(amount||0)}
 function recurringMonthlyValue(r){const a=Number(r.amount||0);return r.frequency==='Semanal'?a*4.33:r.frequency==='Anual'?a/12:a}
 function recurringSummary(){const rows=(data.recurring||[]).filter(x=>x.active!==false),monthly=rows.reduce((s,x)=>s+recurringMonthlyValue(x),0),essential=rows.filter(x=>boolish(x.essential)).reduce((s,x)=>s+recurringMonthlyValue(x),0);return {monthly,essential,count:rows.length}}
 function monthlyRecurring(){return recurringSummary().monthly}
 function categorySpent(cat,year=null,month=null){const p=year?{year,month}:latestPeriod();return Number(periodMetrics(p.year,p.month).categories[cat]||0)}
-function dashboardComposition(year,month){const d=periodMetrics(year,month),ds=debtSummary(),nw=networthSummary();return {'Receitas':[['Movimentações e histórico',d.income]],'Gastos':Object.entries(d.categories),'Saldo do período':[['Receitas',d.income],['Gastos',-d.expense]],'Aportes':[['Aportes identificados',d.investments]],'Saldo de dívidas':(data.debts||[]).filter(x=>Number(x.balance||0)>0).map(x=>[x.item,Number(x.balance||0)]),'Patrimônio líquido':[['Contas',nw.accounts],['Investimentos',nw.investments],['Dívidas',-ds.balance]]}}
+function dashboardComposition(year,month){const d=periodMetrics(year,month),ds=debtSummary(),nw=networthSummary();return {'Receitas':[['Movimentações e histórico',d.income]],'Gastos':Object.entries(d.categories),'Saldo do período':[['Receitas',d.income],['Gastos',-d.expense]],'Aportes':[['Aportes identificados',d.investments]],'Saldo de dívidas':(data.debts||[]).filter(x=>String(x.status||'EM ABERTO').toUpperCase()!=='QUITADA'&&Number(x.balance||0)>0.005).map(x=>[x.item,Number(x.balance||0)]),'Patrimônio líquido':[['Contas',nw.accounts],['Investimentos',nw.investments],['Dívidas',-ds.balance]]}}
 function annualReport(year){const series=monthlySeries(year);return {series,income:series.reduce((s,x)=>s+x.income,0),expense:series.reduce((s,x)=>s+x.expense,0),balance:series.reduce((s,x)=>s+x.balance,0),investments:series.reduce((s,x)=>s+x.investments,0)}}
 function topDescriptions(year,month=0,limit=15){const agg={};for(const r of data.transactions||[]){if(!inPeriod(r,year,month))continue;const a=signedAmount(r);if(a<0&&boolish(r.impactBudget,true)&&!boolish(r.ownTransfer)&&r.category!=='Investimentos'){const k=String(r.description||'').slice(0,70);agg[k]=(agg[k]||0)+(-a)}}return Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,limit)}
 function financialHealth(){
@@ -158,12 +172,12 @@ function filterBar(module){const f=getFilters(module),d=PARITY_FILTER_DEFAULTS[m
 function clearOneFilter(module,key){const d=PARITY_FILTER_DEFAULTS[module]||{};setFilters(module,{[key]:d[key]??'Todos'});render()}
 function optionsHtml(values,current,allLabel='Todos'){const arr=[...values];return (allLabel!==null?`<option value="Todos" ${String(current)==='Todos'?'selected':''}>${escapeHtml(allLabel)}</option>`:'')+arr.map(v=>`<option value="${escapeHtml(v)}" ${String(current)===String(v)?'selected':''}>${escapeHtml(v)}</option>`).join('')}
 function yearOptions(current,allowAll=true){return (allowAll?`<option value="Todos" ${String(current)==='Todos'?'selected':''}>Todos</option>`:'')+availableYears().map(y=>`<option value="${y}" ${String(current)===String(y)?'selected':''}>${y}</option>`).join('')}
-function monthOptions(current,allowAll=true){return (allowAll?`<option value="0" ${String(current)==='0'?'selected':''}>Todos</option>`:'')+Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${String(current)===String(m)?'selected':''}>${monthName(m)}</option>`).join('')}
+function monthOptions(current,allowAll=true){return (allowAll?`<option value="0" ${String(current)==='0'?'selected':''}>Todos os meses</option>`:'')+Array.from({length:12},(_,i)=>i+1).map(m=>`<option value="${m}" ${String(current)===String(m)?'selected':''}>${monthName(m)}</option>`).join('')}
 function filterField(id,label,html){return `<label>${label}</label>${html.replace('class="field"',`class="field" id="pf_${id}"`)}`}
 function openFilters(module){
   const f=getFilters(module);let body='';
   const select=(id,label,opts)=>{body+=filterField(id,label,`<select class="field">${opts}</select>`)};
-  if(['dashboard','transactions','budget','reports','cards'].includes(module)){select('year','Ano',yearOptions(f.year,module!=='budget'&&module!=='dashboard'));select('month','Mês',monthOptions(f.month,module!=='budget'&&module!=='dashboard'))}
+  if(['dashboard','transactions','budget','reports','cards'].includes(module)){select('year','Ano',yearOptions(f.year,module!=='budget'&&module!=='dashboard'));select('month','Mês',monthOptions(f.month,true))}
   if(module==='transactions'){select('type','Tipo',optionsHtml(['income','expense'],f.type,'Todos').replace('>income<','>Receitas<').replace('>expense<','>Despesas<'));select('category','Categoria',optionsHtml(categoryNames(true),f.category));select('account','Conta',optionsHtml(uniqueValues(data.accounts,'name'),f.account));select('impact','Impacta orçamento',optionsHtml(['Sim','Não'],f.impact));select('own','Transferência própria',optionsHtml(['Sim','Não'],f.own))}
   if(module==='budget'){select('status','Status',optionsHtml(['OK','Atenção','Estourado','Sem orçamento'],f.status));select('category','Categoria',optionsHtml(categoryNames(true),f.category))}
   if(module==='recurring'){select('status','Status',optionsHtml(['Ativa','Pausada'],f.status));select('category','Categoria',optionsHtml(categoryNames(true),f.category));select('essential','Essencial',optionsHtml(['Sim','Não'],f.essential));select('frequency','Frequência',optionsHtml(['Mensal','Semanal','Anual'],f.frequency));select('account','Conta',optionsHtml(uniqueValues(data.recurring,'account'),f.account))}
@@ -201,4 +215,4 @@ function benchmarkComparisonJS(params){const cases=[['Seu cenário',num(params.r
 function simulateDebtExtraPaymentJS(d,extra){let bal=Math.max(0,Number(d.balance||0)),pay=Math.max(0,Number(d.payment||0)),ex=Math.max(0,num(extra)),rate=Math.max(0,Number(d.interest||0))/100;if(pay<=0)return {months_before:null,months_after:null,interest_before:0,interest_after:0,saved_interest:0};const sim=start=>{let b=start,months=0,interest=0;while(b>.005&&months<1200){const j=b*rate;interest+=j;b=Math.max(0,b+j-pay);months++;if(rate>0&&pay<=j&&months>24)return [null,null]}return [months,Math.round(interest*100)/100]};const [mb,ib]=sim(bal),[ma,ia]=sim(Math.max(0,bal-ex));return {months_before:mb,months_after:ma,interest_before:ib||0,interest_after:ia||0,saved_interest:Math.round(((ib||0)-(ia||0))*100)/100}}
 function monteCarloJS(params,simulations=400,volatilityPct=12){simulations=clamp(Math.round(simulations),100,2000);const vol=Math.max(0,num(volatilityPct))/100,annual=num(params.rate)/100,years=Math.max(1,Math.round(num(params.years||1))),months=years*12,initial=num(params.initial),monthly=num(params.monthly),finals=[];function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}for(let i=0;i<simulations;i++){let bal=initial;for(let m=0;m<months;m++){const r=Math.max(-.95,annual/12+randn()*vol/Math.sqrt(12));bal=Math.max(0,bal*(1+r)+monthly)}finals.push(bal)}finals.sort((a,b)=>a-b);const q=p=>Math.round(finals[Math.min(finals.length-1,Math.max(0,Math.floor((finals.length-1)*p)))]*100)/100;return {p10:q(.1),p50:q(.5),p90:q(.9),simulations,volatility_pct:volatilityPct}}
 
-function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.7'},data}}
+function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.7.2'},data}}

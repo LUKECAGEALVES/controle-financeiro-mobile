@@ -1,4 +1,4 @@
-const CACHE='financeiro-mobile-v7';
+const CACHE='financeiro-mobile-v072';
 const CORE=['./','./index.html','./styles.css','./app.js','./parity-core.js','./parity-pages.js','./manifest.json','./assets/icon-192.png','./assets/icon-512.png'];
 
 self.addEventListener('install',event=>{
