@@ -1,0 +1,13 @@
+Controle Financeiro Mobile v0.7 — validação
+
+- Sintaxe app.js: OK
+- Sintaxe parity-core.js: OK
+- Sintaxe parity-pages.js: OK
+- Manifest JSON: OK
+- Rotas testadas: home, transactions, budget, recurring, debts, investments, calculator, goals, networth, cards, health, reports, import, categories, rules, audit, trash, diagnostics, settings, sync, more
+- Handlers HTML verificados: 257
+- Handlers sem função: 0
+- Cálculo de receitas/gastos/saldo/aportes/resgates: testado
+- Saúde financeira: testada contra a lógica desktop
+- Calculadora simples/completa: testada
+- Google Drive: usa o mesmo schema/revisão/hash do desktop v7.2
