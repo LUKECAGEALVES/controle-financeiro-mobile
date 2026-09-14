@@ -11,7 +11,7 @@ Escopo validado
 - Projecao de investimentos, taxa administrativa e inflacao.
 
 Resultado
-- 13/13 testes existentes de FGTS e paridade aprovados.
+- 18/18 testes de FGTS e paridade aprovados.
 - 5/5 testes adicionais do nucleo financeiro aprovados.
 - Nenhum erro ou aviso no console durante a navegacao validada.
 
@@ -21,6 +21,8 @@ Correcoes financeiras principais
 - Valores negativos sao arredondados de forma simetrica.
 - Tipos historicos de lancamento em portugues e ingles mantem o sinal correto.
 - A taxa administrativa anual usa a taxa mensal composta equivalente.
+- O empregador deposita 8% do salario bruto em todos os meses e o saque
+  acontece uma vez por ano, no mes do aniversario, sobre o saldo total.
 
 Observacao
 - Os calculos de IR e FGTS sao simulacoes educativas. Antes de uma

@@ -1,5 +1,11 @@
 # Calculadora Avançada — FGTS x Reinvestimento
 
+## Depósitos e saque-aniversário
+
+- O empregador deposita **8% do salário bruto** no FGTS em todos os meses simulados; esse valor não é descontado do salário.
+- Uma vez por ano, no mês de aniversário escolhido, o Cenário B calcula o saque sobre o saldo total disponível e reinveste 100% na carteira.
+- Faixas: até R$ 500, 50%; até R$ 1.000, 40% + R$ 50; até R$ 5.000, 30% + R$ 150; até R$ 10.000, 20% + R$ 650; até R$ 15.000, 15% + R$ 1.150; até R$ 20.000, 10% + R$ 1.900; acima de R$ 20.000, 5% + R$ 2.900.
+
 ## Cenários
 
 - **A — FGTS conservador:** o saldo inicial do FGTS permanece na conta e rende pela taxa anual informada. A carteira recebe somente capital inicial, aportes mensais, 13º e PLR.
