@@ -58,7 +58,7 @@ button{cursor:pointer}
 @media (min-width:521px){body{padding:18px}.app-shell{border-radius:28px;overflow:hidden;min-height:calc(100vh - 36px)}.bottom-nav{bottom:18px;border-radius:0 0 28px 28px}.toast{bottom:116px}}
 .sheet label{font-size:13px;font-weight:900;display:block;margin:13px 0 6px}.danger-btn{background:linear-gradient(135deg,#e53945,#c92532)!important}.kpi:not(.green):not(.red):not(.purple){background:#eef5ff}.status-grid{margin-top:8px}.menu-row{cursor:pointer}.card .actions-row button{min-height:42px}.info-row{padding:7px 0;border-bottom:1px solid var(--line)}.info-row:last-child{border-bottom:0}
 
-/* v0.8.0 — paridade funcional com o desktop */
+/* v0.9.0 — paridade funcional com o desktop */
 .page-subtitle{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
 .kpi-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .kpi-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
@@ -84,7 +84,7 @@ button{cursor:pointer}
 .field[readonly]{background:#f1f4f8;color:#64748b}
 textarea.field{resize:vertical;min-height:84px}
 @media(max-width:420px){.kpi-grid-3{grid-template-columns:repeat(2,1fr)}.kpi-grid-3 .kpi:last-child:nth-child(odd){grid-column:1/-1}.kpi-value{font-size:20px}.page-title{font-size:24px}.detail-kpis{grid-template-columns:1fr}.monthly-chart{gap:2px}.sheet-row{display:block}}
-/* v0.8.0 — aviso de receita parcial e tabela detalhada da Visão Geral */
+/* v0.9.0 — aviso de receita parcial e tabela detalhada da Visão Geral */
 .income-warning{border-color:#e5b84b;background:#fffaf0}
 .detail-table-wrap{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:14px}
 .detail-table{width:100%;border-collapse:collapse;min-width:620px;font-size:12px;background:var(--card)}
@@ -94,7 +94,7 @@ textarea.field{resize:vertical;min-height:84px}
 .detail-table td:nth-child(2),.detail-table td:nth-child(3),.detail-table th:nth-child(2),.detail-table th:nth-child(3){text-align:right}
 .detail-table tfoot th{border-bottom:0;font-weight:900}
 
-/* v0.8.0 — calculadora FGTS x reinvestimento */
+/* v0.9.0 — calculadora FGTS x reinvestimento */
 .calc-segment{overflow-x:auto;justify-content:flex-start;gap:6px;padding-bottom:2px}
 .calc-segment button{white-space:nowrap;flex:0 0 auto}
 .fgts-chart-wrap{margin-top:10px;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:var(--soft);padding:8px}
@@ -113,3 +113,11 @@ textarea.field{resize:vertical;min-height:84px}
 .fgts-month-row:last-child{border-bottom:0}
 .fgts-month-row span:not(:first-child),.fgts-month-head span:not(:first-child){text-align:right}
 @media (max-width:560px){.fgts-compare-row{grid-template-columns:1fr 1fr}.fgts-compare-row>div:first-child{grid-column:1/-1;font-weight:700}.fgts-compare-row>div:not(:first-child){text-align:left}.fgts-chart-wrap svg{min-height:150px}}
+
+/* Orientação contextual e primeiros passos */
+.setup-card{border:1px solid #b9d8fb;background:linear-gradient(145deg,var(--card),#f2f8ff)}
+.setup-step,.insight-row{width:100%;border:0;border-top:1px solid var(--line);background:transparent;color:var(--text);display:grid;align-items:center;text-align:left;cursor:pointer}
+.setup-step{grid-template-columns:24px 1fr auto;padding:11px 2px;font:inherit}.setup-step:first-of-type{margin-top:6px}.setup-step strong{font-size:12px;color:var(--blue)}.setup-step.done{opacity:.68}.setup-step.done strong{color:var(--green)}
+.insight-row{grid-template-columns:12px 1fr 12px;gap:10px;padding:12px 2px}.insight-row span:nth-child(2){display:grid;gap:3px}.insight-row small{color:var(--muted);line-height:1.35}.insight-row b{color:var(--muted);font-size:20px}.insight-dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.field-hint{font-size:12px;line-height:1.45;color:var(--muted);background:var(--blueSoft);border-radius:10px;padding:10px 12px;margin:8px 0 2px}
+.empty-state-card{text-align:center;padding:28px 20px}.empty-state-card .primary{margin-top:16px}.empty-icon{font-size:38px;color:var(--blue);margin-bottom:8px}.compact-empty{padding:14px 4px}

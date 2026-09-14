@@ -1,0 +1,14 @@
+const e=require('../fgts-calculator.js');
+function assert(cond,msg){if(!cond)throw new Error(msg||'assertion failed')}
+const expected=[[500,250],[1000,450],[5000,1650],[10000,2650],[15000,3400],[20000,3900],[25000,4150]];
+for(const [b,w] of expected)assert(Math.abs(e.birthdayWithdrawal(b)-w)<1e-9,`FGTS ${b}`);
+assert(e.fixedIncomeIrRate(6)===.225,'IR 6');
+assert(e.fixedIncomeIrRate(7)===.20,'IR 7');
+assert(e.fixedIncomeIrRate(13)===.175,'IR 13');
+assert(e.fixedIncomeIrRate(25)===.15,'IR 25');
+const p={initial_investment:1000,monthly_contribution:500,portfolio_annual_rate_pct:10,inflation_annual_pct:4.5,period_months:60,thirteenth_total:3000,thirteenth_first_month:11,thirteenth_first_pct:50,thirteenth_second_month:12,thirteenth_second_pct:50,plr_first_value:1000,plr_first_month:3,plr_second_value:1000,plr_second_month:9,fgts_initial_balance:10000,fgts_annual_rate_pct:3,birthday_month:3};
+const r=e.simulate(p);
+assert(r.rows.length===60,'rows');
+assert(Math.abs(r.scenario_a.consolidated_total-80343.09644884603)<1e-6,'parity A');
+assert(Math.abs(r.scenario_b.consolidated_total-82243.50415684516)<1e-6,'parity B');
+console.log('13/13 testes/paridades JS OK');

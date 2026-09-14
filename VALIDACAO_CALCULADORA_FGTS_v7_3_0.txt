@@ -1,0 +1,29 @@
+Controle Financeiro — validação da Calculadora FGTS x Reinvestimento
+Versões: Windows v7.3.0 / Mobile v0.8.0
+
+1) Python
+- 6/6 testes de regra passaram.
+- Faixas do saque-aniversário: R$ 500, 1.000, 5.000, 10.000, 15.000, 20.000 e 25.000 validadas.
+- IR regressivo: faixas 6/7, 12/13 e 24/25 meses validadas.
+- Cenário sem FGTS: A = B.
+- Total aportado pelo usuário com 13º e PLR recorrentes validado.
+- DataFrame pandas com 20 colunas mensais gerado corretamente.
+- Fisher validado pela fórmula exata.
+
+2) JavaScript Mobile
+- node --check: app.js, fgts-calculator.js, parity-core.js e parity-pages.js OK.
+- 13/13 verificações/paridades do motor JS passaram.
+
+3) Java
+- javac InvestmentFgtsCalculator.java: OK.
+- Cenário de 120 meses reproduziu os valores do motor Python arredondados aos centavos.
+
+4) Paridade de referência — 60 meses
+Parâmetros: carteira inicial R$ 1.000; aporte R$ 500/mês; carteira 10% a.a.; inflação 4,5% a.a.; 13º R$ 3.000/ano; PLR R$ 1.000 + R$ 1.000; FGTS inicial R$ 10.000; FGTS 3% a.a.; aniversário março.
+- Cenário A: R$ 80.343,09644884603
+- Cenário B: R$ 82.243,50415684516
+- Delta: R$ 1.900,40770799913
+Python e JavaScript coincidiram numericamente.
+
+5) Observação de interface
+O ambiente de validação não possui PySide6 instalado, portanto a nova tela Windows foi validada por compilação estática (py_compile), mas não por renderização gráfica neste container. O motor financeiro, DataFrame, Java e JavaScript foram executados de fato.

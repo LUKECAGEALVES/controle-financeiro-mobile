@@ -1,4 +1,4 @@
-const CACHE='financeiro-mobile-v080';
+const CACHE='financeiro-mobile-v090';
 const CORE=['./','./index.html','./styles.css','./app.js','./fgts-calculator.js','./parity-core.js','./parity-pages.js','./manifest.json','./assets/icon-192.png','./assets/icon-512.png'];
 
 self.addEventListener('install',event=>{

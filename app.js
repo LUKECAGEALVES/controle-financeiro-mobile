@@ -11,12 +11,14 @@ const nowIso = () => new Date().toISOString();
 const brDate = iso => iso ? new Date(iso+'T12:00:00').toLocaleDateString('pt-BR') : '—';
 const todayBR = () => new Intl.DateTimeFormat('pt-BR',{dateStyle:'long'}).format(new Date());
 const num = raw => {
-  if(typeof raw==='number') return raw;
+  if(typeof raw==='number') return Number.isFinite(raw)?raw:0;
   const s=String(raw??'').trim().replace(/\s/g,'').replace(/R\$/gi,'');
   if(!s) return 0;
-  if(s.includes(',') && s.includes('.')) return Number(s.replace(/\./g,'').replace(',','.'))||0;
-  if(s.includes(',')) return Number(s.replace(',','.'))||0;
-  return Number(s)||0;
+  let value;
+  if(s.includes(',') && s.includes('.')) value=Number(s.replace(/\./g,'').replace(',','.'));
+  else if(s.includes(',')) value=Number(s.replace(',','.'));
+  else value=Number(s);
+  return Number.isFinite(value)?value:0;
 };
 const escapeHtml = s => String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 const userInitials = name => {const parts=String(name||'Usuário').trim().split(/\s+/).filter(Boolean);return ((parts[0]?.[0]||'U')+(parts.length>1?(parts[parts.length-1]?.[0]||''):'' )).toUpperCase().slice(0,2)};
@@ -35,7 +37,7 @@ const seedData = {
   importedFiles:[], scenarios:[]
 };
 
-function defaultState(){return {meta:{app:'Controle Financeiro Mobile',version:'0.8.0',user:'Usuário',deviceId:`mobile-${uid().slice(0,8)}`,createdAt:nowIso(),updatedAt:nowIso(),lastSyncAt:null,syncProvider:'Google Drive',syncReady:true,syncConnected:false,pendingChanges:0,changeQueue:[],googleClientId:'',driveFolderId:'',driveFileId:'',driveLastRevision:0,driveLastHash:'',driveLastLocalHash:'',driveLastRemoteHash:'',driveLastModified:'',autoSyncEnabled:true,autoSyncIntervalSec:60,autoSyncConflict:false,autoSyncLastError:'',autoSyncLastAttempt:null},data:JSON.parse(JSON.stringify(seedData))}}
+function defaultState(){return {meta:{app:'Controle Financeiro Mobile',version:'0.9.0',user:'Usuário',deviceId:`mobile-${uid().slice(0,8)}`,createdAt:nowIso(),updatedAt:nowIso(),lastSyncAt:null,syncProvider:'Google Drive',syncReady:true,syncConnected:false,pendingChanges:0,changeQueue:[],googleClientId:'',driveFolderId:'',driveFileId:'',driveLastRevision:0,driveLastHash:'',driveLastLocalHash:'',driveLastRemoteHash:'',driveLastModified:'',autoSyncEnabled:true,autoSyncIntervalSec:60,autoSyncConflict:false,autoSyncLastError:'',autoSyncLastAttempt:null},data:JSON.parse(JSON.stringify(seedData))}}
 function ensureData(d){
   const defaults=JSON.parse(JSON.stringify(seedData));
   d=(d&&typeof d==='object')?d:{};
@@ -49,7 +51,7 @@ function ensureData(d){
   d.debts=d.debts.map(x=>({...x,payments:Array.isArray(x.payments)?x.payments:[]}));
   return d;
 }
-function migrate(raw){if(!raw)return defaultState(); if(raw.meta&&raw.data){const def=defaultState();raw.data=ensureData(raw.data);raw.meta={...def.meta,...raw.meta,version:'0.8.0'};return raw} const st=defaultState();st.data=ensureData(raw);return st}
+function migrate(raw){if(!raw)return defaultState(); if(raw.meta&&raw.data){const def=defaultState();raw.data=ensureData(raw.data);raw.meta={...def.meta,...raw.meta,version:'0.9.0'};return raw} const st=defaultState();st.data=ensureData(raw);return st}
 const store={get(){try{return migrate(JSON.parse(localStorage.getItem('financeiro_mobile_state')))}catch{return defaultState()}},set(v){localStorage.setItem('financeiro_mobile_state',JSON.stringify(v))},reset(){localStorage.removeItem('financeiro_mobile_state');location.reload()}};
 let state=store.get(),data=state.data,currentRoute='home',deferredPrompt=null;
 function showToast(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>toast.classList.remove('show'),2200)}
@@ -92,7 +94,7 @@ function monthlyRecurring(){return data.recurring.filter(x=>x.active).reduce((a,
 function reserveSummary(){const base=data.settings.essentialBase||monthlyRecurring()||0,target=base*(data.reserve.months||6),current=data.reserve.current||0;return{base,target,current,missing:Math.max(0,target-current),progress:target?current/target*100:0}}
 function healthSummary(){const t=totals(),r=reserveSummary(),income=data.settings.monthlyIncome||t.income||1,debtMonthly=data.debts.reduce((a,b)=>a+(b.payment||0),0),saveRate=Math.max(0,(income-t.expense)/income*100),debtCommit=debtMonthly/income*100,reserveMonths=r.base?r.current/r.base:0;let score=50+Math.min(20,saveRate*.7)+Math.min(20,reserveMonths*4)-Math.min(25,debtCommit*.8);score=Math.max(0,Math.min(100,score));return{score,saveRate,debtCommit,reserveMonths,networth:t.networth}}
 function categorySpent(cat){const p=latestPeriod();return data.transactions.filter(x=>inPeriod(x,p.year,p.month)&&x.type==='expense'&&x.category===cat&&x.category!=='Investimentos'&&x.ownTransfer!==true&&x.ownTransfer!==1&&x.impactBudget!==false&&x.impactBudget!==0).reduce((a,b)=>a+Number(b.amount||0),0)}
-function progressPct(g){return Math.min(100,Math.round((g.current/g.target)*100||0))}
+function progressPct(g){const target=Number(g?.target||0),current=Number(g?.current||0);return target>0?Math.max(0,Math.min(100,Math.round(current/target*100))):0}
 function sectionHead(title,action=''){return `<div class="page-head"><div class="page-title">${title}</div>${action}</div>`}
 
 function home(){const t=totals(),bt=budgetTotal(),bp=Math.min(100,Math.round(t.expense/(bt||1)*100));return `<section><div class="hero-greeting">Olá, ${escapeHtml(data.settings.userName.split(' ')[0]||'Usuário')} 👋</div><div class="date-line">${todayBR()}</div><div class="card sync-card" onclick="nav('sync')"><div class="drive-icon">▲</div><div style="flex:1"><div class="row-between"><div><div class="sync-title">${state.meta.syncConnected?'Google Drive sincronizado':'Google Drive não conectado'}</div><div class="sync-sub"><span class="dot"></span>${state.meta.syncConnected?'Sincronização automática entre PC e celular':'Abra a Central de sincronização para conectar'}</div></div><span class="chip blue">${state.meta.pendingChanges} pend.</span></div></div></div><div class="card balance-card"><div class="balance-label">Saldo das movimentações</div><div class="balance-value">${fmt(t.balance)}</div><div class="balance-note"><strong>●</strong> dados salvos neste aparelho</div><div class="mini-stats"><div class="mini-pill">Patrimônio ${fmt(t.networth)}</div><div class="mini-pill">Dívidas ${fmt(t.debts)}</div></div></div><div class="grid-2"><div class="kpi green"><div class="kpi-label">Receitas</div><div class="kpi-value">${fmt(t.income)}</div></div><div class="kpi red"><div class="kpi-label">Gastos</div><div class="kpi-value">${fmt(t.expense)}</div></div></div><div class="card"><div class="section-title">Ações rápidas</div><div class="quick-actions"><button class="quick" onclick="openNewTransaction()"><div class="qicon">⇄</div><small>Movimentar</small></button><button class="quick" onclick="nav('goals')"><div class="qicon">◎</div><small>Metas</small></button><button class="quick" onclick="nav('cards')"><div class="qicon">▣</div><small>Cartões</small></button><button class="quick" onclick="nav('investments')"><div class="qicon">▥</div><small>Investimentos</small></button></div></div><div class="card"><div class="row-between"><div><div class="section-title">Resumo do mês</div><div class="muted small">Transferências próprias e aportes não entram em Receitas/Gastos</div></div><div class="muted small">Orçamento ${fmt(bt)}</div></div><div class="progress ${bp>=90?'yellow':'blue'}"><div style="width:${bp}%"></div></div><div style="margin-top:9px"><strong>${bp}%</strong> <span class="muted">do orçamento utilizado</span></div><div class="small muted">${fmt(t.expense)} de ${fmt(bt)}</div></div><div class="card"><div class="row-between"><div class="section-title">Saúde financeira</div><button class="link-btn" onclick="nav('health')">Ver detalhes</button></div>${healthCard()}</div></section>`}
@@ -237,7 +239,7 @@ function validateCloudPayload(payload){
 }
 function stableObject(v){if(Array.isArray(v))return v.map(stableObject);if(v&&typeof v==='object'){const o={};Object.keys(v).sort().forEach(k=>o[k]=stableObject(v[k]));return o}return v}
 async function hashData(v){const raw=new TextEncoder().encode(JSON.stringify(stableObject(v)));const buf=await crypto.subtle.digest('SHA-256',raw);return [...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.8.0'},data}}
+function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.9.0'},data}}
 function requireSecureGoogle(){if(!(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))throw new Error('O login Google no navegador exige HTTPS. Publique a PWA no GitHub Pages e use o endereço HTTPS como origem autorizada no Google Cloud.')}
 function requestGoogleToken(interactive=true){return new Promise((resolve,reject)=>{try{requireSecureGoogle();if(hasValidGoogleToken())return resolve(googleAccessToken);if(!state.meta.googleClientId)throw new Error('Informe o Google Web Client ID em Configurações.');if(!window.google?.accounts?.oauth2)throw new Error('Biblioteca do Google ainda não carregou. Aguarde alguns segundos e tente novamente.');const client=google.accounts.oauth2.initTokenClient({client_id:state.meta.googleClientId,scope:DRIVE_SCOPE,callback:r=>{if(r.error)return reject(new Error(interactive?r.error:'AUTH_REQUIRED: não foi possível renovar a sessão Google silenciosamente. Abra o app e toque em Conectar Google Drive.'));rememberGoogleToken(r);state.meta.syncConnected=true;state.meta.autoSyncLastError='';save();resolve(googleAccessToken)}});client.requestAccessToken({prompt:interactive?(state.meta.syncConnected?'':'consent'):''})}catch(e){reject(e)}})}
 async function driveFetch(url,opts={},interactiveAuth=true){if(!hasValidGoogleToken())await requestGoogleToken(interactiveAuth);const headers={...(opts.headers||{}),Authorization:`Bearer ${googleAccessToken}`};const res=await fetch(url,{...opts,headers});if(res.status===401){clearGoogleToken();await requestGoogleToken(interactiveAuth);return driveFetch(url,opts,interactiveAuth)}if(!res.ok){const t=await res.text(),err=new Error(`Google Drive ${res.status}: ${t.slice(0,240)}`);err.status=res.status;throw err}return res}
@@ -380,7 +382,7 @@ async function runAutoDriveSync(){
   scheduleAutoDriveSync(autoSyncIntervalMs());
 }
 
-function more(){return `${sectionHead('Mais','')}<div class="card profile"><div class="avatar">${userInitials(data.settings.userName)}</div><div><div class="goal-name">${escapeHtml(data.settings.userName)}</div><div class="muted small">Controle Financeiro Mobile v0.8.0</div></div></div><div class="card menu-card">${[
+function more(){return `${sectionHead('Mais','')}<div class="card profile"><div class="avatar">${userInitials(data.settings.userName)}</div><div><div class="goal-name">${escapeHtml(data.settings.userName)}</div><div class="muted small">Controle Financeiro Mobile v0.9.0</div></div></div><div class="card menu-card">${[
 ['◔','Orçamento','budget'],['↻','Contas fixas','recurring'],['▤','Dívidas e Parcelas','debts'],['▣','Cartões de crédito','cards'],['▥','Investimentos','investments'],['⌁','Calculadoras','calculator'],['♥','Saúde financeira','health'],['▥','Relatórios','reports'],['NU','Importar Nubank','import']].map(x=>`<div class="menu-row" onclick="nav('${x[2]}')"><div class="menu-icon">${x[0]}</div><div>${x[1]}</div><div class="chev">›</div></div>`).join('')}</div><div class="card menu-card"><div class="menu-row" onclick="nav('sync')"><div class="menu-icon">▲</div><div>Google Drive <div class="small ${state.meta.syncConnected?'income':'muted'}">● ${state.meta.syncConnected?'sincronizado':'não conectado'}</div></div><div class="chev">›</div></div><div class="menu-row" onclick="nav('settings')"><div class="menu-icon">⚙</div><div>Configurações e Backup</div><div class="chev">›</div></div></div>`}
 
 function bindCalculator(){document.querySelectorAll('#calcSeg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#calcSeg button').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('#calcBody').innerHTML=b.dataset.calc==='simple'?simpleCalcForm():completeCalcForm()})}

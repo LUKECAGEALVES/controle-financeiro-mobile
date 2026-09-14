@@ -1,0 +1,28 @@
+Controle Financeiro Mobile v0.8.0 — validação
+
+Correção principal:
+- Saúde Financeira usa renda de referência estável e não trata meses sem renda como renda zero.
+- Taxa de poupança, Dívidas/Renda, Essenciais/Renda e Score seguem a mesma base do Windows.
+- Tela informa "Renda ref." e mostra a origem da base usada.
+- Diagnóstico local valida a taxa de poupança e a renda de referência.
+
+Validações executadas antes do empacotamento:
+- node --check em app.js, parity-core.js e parity-pages.js;
+- testes unitários da nova base financeira;
+- cache PWA renovado para v0.8.0.
+
+- Visão Geral: Saldo e Aportes exibem subtítulos descritivos, evitando percentuais distorcidos quando a renda do período está parcial.
+- Gastos por categoria destaca explicitamente que os valores mostrados na lista são exatos.
+
+- Visão Geral sinaliza receita parcial/período em andamento e avisa quando percentuais são provisórios.
+- Gastos por categoria ganhou tabela completa com todos os valores exatos e participação percentual.
+- Aviso adicional identifica Transferências contabilizadas como gasto e orienta marcar as próprias como neutras.
+
+Calculadora FGTS x reinvestimento:
+- motor JavaScript isolado em fgts-calculator.js;
+- tabela oficial informada de saque-aniversário nos 7 intervalos;
+- IR regressivo por lote;
+- 13º e PLR em duas parcelas;
+- resumo A x B, gráfico SVG, evolução mensal e download CSV;
+- implementação Java equivalente incluída em java/;
+- paridade numérica com o motor Python do Windows validada.

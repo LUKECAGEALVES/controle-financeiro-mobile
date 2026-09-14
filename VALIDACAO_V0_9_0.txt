@@ -1,0 +1,27 @@
+CONTROLE FINANCEIRO MOBILE 0.9.0 - REGISTRO DE VALIDACAO
+
+Data: 13/09/2026
+
+Escopo validado
+- Interface responsiva em viewport de celular (390 x 844).
+- Fluxo inicial, cadastro de conta e novo lancamento.
+- Estados vazios e orientacoes contextuais.
+- Sintaxe dos arquivos JavaScript.
+- Calculos da calculadora FGTS e paridade com o aplicativo de PC.
+- Projecao de investimentos, taxa administrativa e inflacao.
+
+Resultado
+- 13/13 testes existentes de FGTS e paridade aprovados.
+- 5/5 testes adicionais do nucleo financeiro aprovados.
+- Nenhum erro ou aviso no console durante a navegacao validada.
+
+Correcoes financeiras principais
+- Percentuais informados como 0% agora permanecem em 0%, sem serem
+  substituidos por valores padrao.
+- Valores negativos sao arredondados de forma simetrica.
+- Tipos historicos de lancamento em portugues e ingles mantem o sinal correto.
+- A taxa administrativa anual usa a taxa mensal composta equivalente.
+
+Observacao
+- Os calculos de IR e FGTS sao simulacoes educativas. Antes de uma
+  decisao financeira, confirme regras, datas e aliquotas nas fontes oficiais.

@@ -1,4 +1,4 @@
-/* Controle Financeiro Mobile v0.8.0 — motor puro FGTS x reinvestimento
+/* Controle Financeiro Mobile v0.9.0 — motor puro FGTS x reinvestimento
  *
  * Sem dependência da interface. As funções são expostas em globalThis para a
  * PWA e também podem ser carregadas diretamente pelo Node.js em testes.

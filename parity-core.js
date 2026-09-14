@@ -1,4 +1,4 @@
-/* Controle Financeiro Mobile v0.8.0 — camada de paridade com desktop v7.3.0
+/* Controle Financeiro Mobile v0.9.0 — camada de paridade com desktop v7.4.0
  * Esta camada não substitui nem converte os dados existentes. Ela apenas
  * adiciona UI, filtros e cálculos equivalentes aos serviços do desktop.
  */
@@ -21,14 +21,21 @@ function parityEnsureData(){
   }
   data.settings={monthlyIncome:0,monthlyInvestmentGoal:0,essentialBase:0,userName:'Usuário',theme:'light',autosave:true,backupRetention:12,...(data.settings||{})};
   data.reserve={current:0,months:6,...(data.reserve||{})};
-  state.meta.version='0.8.0';
+  state.meta.version='0.9.0';
   state.meta.uiFilters=(state.meta.uiFilters&&typeof state.meta.uiFilters==='object')?state.meta.uiFilters:{};
   state.meta.uiSearch=(state.meta.uiSearch&&typeof state.meta.uiSearch==='object')?state.meta.uiSearch:{};
   save();
 }
 parityEnsureData();
 
-function signedAmount(tx){return Math.abs(Number(tx?.amount||0))*(tx?.type==='income'?1:-1)}
+function signedAmount(tx){
+  const raw=Number(tx?.amount||0),type=String(tx?.type||'').trim().toLocaleLowerCase('pt-BR');
+  if(!Number.isFinite(raw))return 0;
+  if(['income','entrada','receita','credit'].includes(type))return Math.abs(raw);
+  if(['expense','saída','saida','despesa','debit'].includes(type))return -Math.abs(raw);
+  // Backups antigos podem não ter ``type``; nesses casos preservamos o sinal.
+  return raw;
+}
 function boolish(v,def=false){if(v===undefined||v===null)return def;if(v===true||v===1||v==='1'||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='sim')return true;if(v===false||v===0||v==='0'||String(v).toLowerCase()==='false'||String(v).toLowerCase()==='não'||String(v).toLowerCase()==='nao')return false;return def}
 function clamp(v,a,b){return Math.max(a,Math.min(b,Number(v||0)))}
 function monthName(m){return ['Todos os meses','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][Number(m)||0]||'Todos os meses'}
@@ -80,7 +87,7 @@ function canonicalCategory(category){
   for(const [oldName,newName] of Object.entries(map))if(oldName.toLocaleLowerCase('pt-BR')===low)return newName;
   return raw;
 }
-function moneyRound(v){return Math.round((Number(v||0)+Number.EPSILON)*100)/100}
+function moneyRound(v){const n=Number(v||0);if(!Number.isFinite(n))return 0;const sign=n<0?-1:1;return sign*Math.round((Math.abs(n)+Number.EPSILON)*100)/100}
 function flowClassification(t){
   const a=signedAmount(t),cat=canonicalCategory(t?.category||'Outros'),meta=categoryByName(cat),group=String(meta.group_name||'Outros').trim().toLocaleLowerCase('pt-BR');
   const own=boolish(t?.ownTransfer,false),impact=boolish(t?.impactBudget,true),catLow=cat.toLocaleLowerCase('pt-BR');
@@ -259,9 +266,10 @@ function simulateSavingsGoalJS(p){
 function parseOneoffs(s){const out={};for(const it of String(s||'').split(';')){if(!it.includes(':'))continue;const [a,b]=it.split(':',2),m=parseInt(a.trim()),v=Math.max(0,num(b));if(m>0)out[m]=(out[m]||0)+v}return out}
 function parseRatePhases(s){const out=[];for(const it of String(s||'').split(';')){if(!it.includes(':'))continue;const [span,raw]=it.split(':',2);let a,b;if(span.includes('-'))[a,b]=span.split('-',2).map(x=>parseInt(x.trim()));else a=b=parseInt(span.trim());if(a&&b)out.push([Math.max(1,a),Math.max(1,b),num(raw)])}return out}
 function simulateInvestmentJS(p){
-  const initial=Math.max(0,num(p.initial)),years=Math.max(1/12,num(p.years||10)),annual=Math.max(-99.9,num(p.rate||12)),inflation=Math.max(-99,num(p.inflation||4.5)),tax=clamp(num(p.tax),0,100),fee=clamp(num(p.fee),0,100),salary=Math.max(0,num(p.salary)),salaryPct=clamp(num(p.salary_pct),0,100),monthlyFixed=Math.max(0,num(p.monthly)),mode=p.monthly_mode||'Valor fixo',salaryGrowth=Math.max(-99,num(p.salary_growth)),growth=Math.max(-99,num(p.growth)),thFixed=Math.max(0,num(p.thirteenth)),thPct=clamp(num(p.thirteenth_pct??100),0,100),plr=Math.max(0,num(p.plr)),plrPct=clamp(num(p.plr_pct??100),0,100),vacPct=clamp(num(p.vacation_pct),0,100),annualExtra=Math.max(0,num(p.annual_extra)),thMonth=Number(p.thirteenth_month||12),plrMonth=Number(p.plr_month||3),vacMonth=Number(p.vacation_month||1),skip=new Set(String(p.skip_months||'').replace(/;/g,',').split(',').map(x=>parseInt(x.trim())).filter(x=>x>=1&&x<=12)),oneoffs=parseOneoffs(p.oneoffs),phases=parseRatePhases(p.rate_phases),months=Math.max(1,Math.round(years*12));let balance=initial,invested=initial,points=[];
-  for(let month=1;month<=months;month++){const yi=Math.floor((month-1)/12),moy=(month-1)%12+1,simYear=yi+1;let curAnnual=annual;for(const [a,b,r] of phases)if(a<=simYear&&simYear<=b){curAnnual=r;break}const mr=Math.pow(1+curAnnual/100,1/12)-1,curSalary=salary*Math.pow(1+salaryGrowth/100,yi),base=mode==='% do salário'?curSalary*salaryPct/100:monthlyFixed*Math.pow(1+growth/100,yi),effective=(1+mr)*(1-fee/100/12)-1;balance*=1+effective;if(!skip.has(moy)){balance+=base;invested+=base}if(moy===thMonth){const x=(thFixed<=0?curSalary:thFixed)*thPct/100;balance+=x;invested+=x}if(moy===plrMonth){const x=plr*plrPct/100;balance+=x;invested+=x}if(moy===vacMonth&&vacPct>0){const x=(curSalary/3)*vacPct/100;balance+=x;invested+=x}if(moy===12&&annualExtra>0){balance+=annualExtra;invested+=annualExtra}if(oneoffs[month]){balance+=oneoffs[month];invested+=oneoffs[month]}const real=inflation>-100?balance/Math.pow(1+inflation/100,month/12):balance;if(month===1||month===months||month%12===0)points.push({month,balance,invested,real})}
-  const gross=Math.max(0,balance-invested),taxValue=gross*tax/100,net=Math.max(0,balance-taxValue),realNet=inflation>-100?net/Math.pow(1+inflation/100,years):net,withdrawal=Math.max(0,num(p.withdrawal_rate??0.6))/100;return {net,nominal:balance,real_net:realNet,invested,gross_interest:balance-invested,tax_value:taxValue,monthly_income:net*withdrawal,points,years,annual_rate:annual};
+  const initial=Math.max(0,num(p.initial)),years=Math.max(1/12,num(p.years??10)),annual=Math.max(-99.9,num(p.rate??12)),inflation=Math.max(-99,num(p.inflation??4.5)),tax=clamp(num(p.tax),0,100),fee=clamp(num(p.fee),0,100),salary=Math.max(0,num(p.salary)),salaryPct=clamp(num(p.salary_pct),0,100),monthlyFixed=Math.max(0,num(p.monthly)),mode=p.monthly_mode||'Valor fixo',salaryGrowth=Math.max(-99,num(p.salary_growth)),growth=Math.max(-99,num(p.growth)),thFixed=Math.max(0,num(p.thirteenth)),thPct=clamp(num(p.thirteenth_pct??100),0,100),plr=Math.max(0,num(p.plr)),plrPct=clamp(num(p.plr_pct??100),0,100),vacPct=clamp(num(p.vacation_pct),0,100),annualExtra=Math.max(0,num(p.annual_extra)),thMonth=Number(p.thirteenth_month||12),plrMonth=Number(p.plr_month||3),vacMonth=Number(p.vacation_month||1),skip=new Set(String(p.skip_months||'').replace(/;/g,',').split(',').map(x=>parseInt(x.trim())).filter(x=>x>=1&&x<=12)),oneoffs=parseOneoffs(p.oneoffs),phases=parseRatePhases(p.rate_phases),months=Math.max(1,Math.round(years*12));let balance=initial,invested=initial,points=[];
+  const monthlyFee=fee<100?Math.pow(1-fee/100,1/12)-1:-1;
+  for(let month=1;month<=months;month++){const yi=Math.floor((month-1)/12),moy=(month-1)%12+1,simYear=yi+1;let curAnnual=annual;for(const [a,b,r] of phases)if(a<=simYear&&simYear<=b){curAnnual=r;break}const mr=Math.pow(1+curAnnual/100,1/12)-1,curSalary=salary*Math.pow(1+salaryGrowth/100,yi),base=mode==='% do salário'?curSalary*salaryPct/100:monthlyFixed*Math.pow(1+growth/100,yi),effective=(1+mr)*(1+monthlyFee)-1;balance*=1+effective;if(!skip.has(moy)){balance+=base;invested+=base}if(moy===thMonth){const x=(thFixed<=0?curSalary:thFixed)*thPct/100;balance+=x;invested+=x}if(moy===plrMonth){const x=plr*plrPct/100;balance+=x;invested+=x}if(moy===vacMonth&&vacPct>0){const x=(curSalary/3)*vacPct/100;balance+=x;invested+=x}if(moy===12&&annualExtra>0){balance+=annualExtra;invested+=annualExtra}if(oneoffs[month]){balance+=oneoffs[month];invested+=oneoffs[month]}const real=inflation>-100?balance/Math.pow(1+inflation/100,month/12):balance;if(month===1||month===months||month%12===0)points.push({month,balance,invested,real})}
+  const simulatedYears=months/12,gross=Math.max(0,balance-invested),taxValue=gross*tax/100,net=Math.max(0,balance-taxValue),realNet=inflation>-100?net/Math.pow(1+inflation/100,simulatedYears):net,withdrawal=Math.max(0,num(p.withdrawal_rate??0.6))/100;return {net,nominal:balance,real_net:realNet,invested,gross_interest:balance-invested,tax_value:taxValue,monthly_income:net*withdrawal,points,years:simulatedYears,annual_rate:annual};
 }
 
 function requiredMonthlyForTargetJS(params,target){target=Math.max(0,num(target));if(!target)return 0;let lo=0,hi=Math.max(1000,target/12),p={...params,monthly_mode:'Valor fixo',salary_pct:0};for(let i=0;i<30;i++){p.monthly=hi;if(simulateInvestmentJS(p).net>=target)break;hi*=2}for(let i=0;i<60;i++){const mid=(lo+hi)/2;p.monthly=mid;if(simulateInvestmentJS(p).net>=target)hi=mid;else lo=mid}return hi}
@@ -270,4 +278,4 @@ function benchmarkComparisonJS(params){const cases=[['Seu cenário',num(params.r
 function simulateDebtExtraPaymentJS(d,extra){let bal=Math.max(0,Number(d.balance||0)),pay=Math.max(0,Number(d.payment||0)),ex=Math.max(0,num(extra)),rate=Math.max(0,Number(d.interest||0))/100;if(pay<=0)return {months_before:null,months_after:null,interest_before:0,interest_after:0,saved_interest:0};const sim=start=>{let b=start,months=0,interest=0;while(b>.005&&months<1200){const j=b*rate;interest+=j;b=Math.max(0,b+j-pay);months++;if(rate>0&&pay<=j&&months>24)return [null,null]}return [months,Math.round(interest*100)/100]};const [mb,ib]=sim(bal),[ma,ia]=sim(Math.max(0,bal-ex));return {months_before:mb,months_after:ma,interest_before:ib||0,interest_after:ia||0,saved_interest:Math.round(((ib||0)-(ia||0))*100)/100}}
 function monteCarloJS(params,simulations=400,volatilityPct=12){simulations=clamp(Math.round(simulations),100,2000);const vol=Math.max(0,num(volatilityPct))/100,annual=num(params.rate)/100,years=Math.max(1,Math.round(num(params.years||1))),months=years*12,initial=num(params.initial),monthly=num(params.monthly),finals=[];function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}for(let i=0;i<simulations;i++){let bal=initial;for(let m=0;m<months;m++){const r=Math.max(-.95,annual/12+randn()*vol/Math.sqrt(12));bal=Math.max(0,bal*(1+r)+monthly)}finals.push(bal)}finals.sort((a,b)=>a-b);const q=p=>Math.round(finals[Math.min(finals.length-1,Math.max(0,Math.floor((finals.length-1)*p)))]*100)/100;return {p10:q(.1),p50:q(.5),p90:q(.9),simulations,volatility_pct:volatilityPct}}
 
-function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.8.0'},data}}
+function cloudPayload(revision){return {schema:'controle-financeiro-sync',schemaVersion:1,revision:Number(revision||0),updatedAt:nowIso(),updatedBy:state.meta.deviceId,meta:{app:'Controle Financeiro Mobile',mobileVersion:'0.9.0'},data}}
